@@ -1,9 +1,11 @@
+require('dotenv').config();
+const webhookRoutes = require("./routes/webhook");
+
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const mongoose = require("mongoose"); // 🔥 Esta línea es necesaria
-require('dotenv').config();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -11,6 +13,11 @@ app.use(cors());
 app.use(bodyParser.json());
 
 const MONGO_URI = process.env.MONGO_URI;
+const verify_token = process.env.VERIFY_TOKEN;
+
+
+app.use("/webhook", webhookRoutes);
+
 
 
 // Conexión a MongoDB
@@ -18,12 +25,8 @@ mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ Conectado a MongoDB"))
   .catch(err => console.error("❌ Error al conectar a MongoDB:", err));
 
-// Modelo de Queja
-const Queja = mongoose.model("Queja", {
-  numero: String,
-  mensaje: String,
-  fecha: String,
-});
+// Modelo de Queja externo en folder models
+const Queja = require("./models/Queja");
 
 // Endpoint para recibir quejas
 app.post("/api/quejas", async (req, res) => {
@@ -50,3 +53,5 @@ app.get("/api/quejas", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
 });
+
+
