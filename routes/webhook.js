@@ -1,52 +1,41 @@
+// routes/webhook.js
 const express = require("express");
-const router = express.Router();
-const Queja = require("../models/Queja"); // Ya definido en models
-const verify_token = process.env.VERIFY_TOKEN || "axflow_verify_token";
+const router  = express.Router();
+const quejaCtrl = require("../controllers/queja.controller");
+const citaCtrl  = require("../controllers/cita.controller");
+const VERIFY = process.env.VERIFY_TOKEN || "axflow_verify_token_2025";
 
-// GET: Verificación de Meta
+
+
+
+//GET
 router.get("/", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode && token === verify_token) {
+  const { "hub.mode": mode, "hub.verify_token": token, "hub.challenge": chal } = req.query;
+  if (mode === "subscribe" && token === VERIFY) {
     console.log("🟢 Webhook verificado con Meta");
-    return res.status(200).send(challenge);
-  } else {
-    return res.status(403).send("❌ Verificación fallida");
+    return res.send(chal);
   }
+  return res.sendStatus(403);
 });
+//POST
 
-// POST: Recepción de mensajes
 router.post("/", async (req, res) => {
-  const body = req.body;
-  console.log("📩 Webhook recibido:", JSON.stringify(body, null, 2));
-
-  if (body.object) {
+  console.log("📩 Webhook recibido:", JSON.stringify(req.body, null, 2));
+  const messages = req.body.entry?.[0]?.changes?.[0]?.value?.messages || [];
+  for (const m of messages) {
+    const from = `whatsapp:${m.from}`;
+    const text = m.text?.body?.trim() || "";
     try {
-      const entry = body.entry?.[0];
-      const change = entry?.changes?.[0];
-      const message = change?.value?.messages?.[0];
-
-      if (message) {
-        const numero = message.from;
-        const mensaje = message.text?.body || "Sin texto";
-        const fecha = new Date().toISOString();
-
-        const nuevaQueja = new Queja({ numero, mensaje, fecha });
-        await nuevaQueja.save();
-
-        console.log("✅ Queja guardada en MongoDB");
+      if (text.toLowerCase().startsWith("cita")) {
+        await citaCtrl.handle({ from, text });
+      } else {
+        await quejaCtrl.handle({ from, text });
       }
-
-      res.sendStatus(200);
-    } catch (error) {
-      console.error("❌ Error al guardar la queja:", error);
-      res.sendStatus(500);
+    } catch (err) {
+      console.error("❌ Error manejando mensaje:", err);
     }
-  } else {
-    res.sendStatus(404);
   }
+  res.sendStatus(200);
 });
 
 module.exports = router;
