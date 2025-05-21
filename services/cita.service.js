@@ -1,6 +1,6 @@
 // services/cita.service.js
 const Cita = require("../models/Cita");
-const { appointments } = require("../index");
+const appointments = require("../events");
 
 exports.create = async data => {
   const cita = await Cita.create(data);

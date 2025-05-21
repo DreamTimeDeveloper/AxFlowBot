@@ -1,57 +1,30 @@
-require('dotenv').config();
-const webhookRoutes = require("./routes/webhook");
 
 
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const mongoose = require("mongoose"); // 🔥 Esta línea es necesaria
+// index.js
+require('dotenv').config();   
+require('./config/db.js');    // arranca la conexión
+
+const express    = require('express');
+const bodyParser = require('body-parser');
+const cors       = require('cors');
+
+const webhookRoutes = require('./routes/webhook.js');
+// const appointments = require('./events.js'); // comenta hasta refactorizar
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
 
-const MONGO_URI = process.env.MONGO_URI;
-const verify_token = process.env.VERIFY_TOKEN;
-
-
-app.use("/webhook", webhookRoutes);
-
-
-
-// Conexión a MongoDB
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("✅ Conectado a MongoDB"))
-  .catch(err => console.error("❌ Error al conectar a MongoDB:", err));
-
-// Modelo de Queja externo en folder models
-const Queja = require("./models/Queja");
-
-// Endpoint para recibir quejas
-app.post("/api/quejas", async (req, res) => {
-  const { numero, mensaje, fecha } = req.body;
-
-  try {
-    const nuevaQueja = new Queja({ numero, mensaje, fecha });
-    await nuevaQueja.save();
-    res.status(201).json({ mensaje: "Queja guardada en base de datos" });
-  } catch (error) {
-    res.status(500).json({ error: "Error al guardar la queja" });
-  }
+// health-check opcional
+app.get('/health', (req, res) => {
+  const estados = ['desconectado','conectando','conectado','desconectando'];
+  const ready   = require('mongoose').connection.readyState;
+  res.json({ mongodb: estados[ready] });
 });
 
-app.get("/api/quejas", async (req, res) => {
-  try {
-    const quejas = await Queja.find(); // Busca todas las quejas en la colección
-    res.status(200).json(quejas);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener las quejas" });
-  }
-});
+// rutas
+app.use('/webhook', webhookRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
-});
-
-
+app.listen(PORT, () => console.log(`🚀 Servidor en http://localhost:${PORT}`));
